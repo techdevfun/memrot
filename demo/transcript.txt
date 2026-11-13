@@ -1,0 +1,62 @@
+# memrot demo - real CLI output on the SYNTHETIC fixture
+# (examples/demo.rl: a fictional migration memory with 7 planted
+#  faults and 3 clean controls. Findings are the fixture's own.)
+
+$ memrot seed demo.rl
+Created seeded demo store: demo.rl
+  11 facts, 6 entities, 8 episodes, 7 planted faults (see examples/seed.cypher).
+Next: memrot audit demo.rl
+
+$ memrot audit demo.rl --as-of 2026-11-13
+memrot audit: demo.rl (as of 2026-11-13)
+
+- Contradictory facts: 2 finding(s) [error]
+  ERROR  database.engine has two current values in overlapping windows: "Postgres 15" (f-db-15) and "Postgres 16" (f-db-16).
+  ERROR  queue.max_payload has two current values in overlapping windows: "4000 bytes" (f-queue-4000) and "8000 bytes" (f-queue-8000).
+- Superseded facts still served: 1 finding(s) [error]
+  ERROR  database.engine = "Postgres 15" (f-db-15) was superseded by f-db-16 but is still marked current, so it can still be served.
+- Stale facts: 2 finding(s) [warning]
+  WARN  cache.ttl = "300s" (f-cache-ttl) expired on 2026-06-01 and is still current. It is also old (recorded 2026-01-05T10:00:00Z) with no corroboration and no newer fact on the same subject and predicate.
+  WARN  feature.flag = "on" (f-feature-flag) expired on 2026-04-01 and is still current. It is also old (recorded 2026-05-02T09:30:00Z) with no corroboration and no newer fact on the same subject and predicate.
+- Orphaned entities: 1 finding(s) [warning]
+  WARN  Entity "LegacyCron" (e-legacycron, kind service) has no relationships: nothing references it and it references nothing.
+- Provenance-less facts: 1 finding(s) [error]
+  ERROR  deploy.region = "eu-west-1" (f-deploy-region) has no episode: there is no record of where this fact came from.
+- Validity-order violations: 1 finding(s) [error]
+  ERROR  feature.flag = "on" (f-feature-flag) has validFrom 2026-05-01 after validTo 2026-04-01: the validity window is empty.
+- Near-duplicate facts (lexical): 1 finding(s) [warning]
+  WARN  database.engine = "Postgres 16" (f-db-16) and database.db_engine = "PostgreSQL 16" (f-db-16b) are near-duplicates (lexical cosine 0.93): the same claim recorded twice under different wording.
+
+9 finding(s): 5 error(s), 4 warning(s)
+audit: FAILED (exit 1)
+exit: 1
+
+$ memrot believed-at demo.rl --at 2026-02-15
+memrot believed-at: demo.rl at 2026-02-15
+
+  cache.ttl = "300s" (f-cache-ttl)
+    valid 2026-01-01 to 2026-06-01, recorded 2026-01-05T10:00:00Z
+  database.db_engine = "PostgreSQL 16" (f-db-16b)
+    valid 2026-02-10 to open, recorded 2026-02-11T09:00:00Z
+  database.engine = "Postgres 15" (f-db-15)
+    valid 2026-01-01 to open, recorded 2026-02-01T08:30:00Z
+  database.engine = "Postgres 16" (f-db-16)
+    valid 2026-02-10 to open, recorded 2026-02-10T11:30:00Z
+  queue.max_payload = "8000 bytes" (f-queue-8000)
+    valid 2026-01-01 to open, recorded 2026-01-05T10:00:00Z
+
+5 fact(s) believed at 2026-02-15.
+
+$ memrot why demo.rl f-db-15
+memrot why: demo.rl f-db-15
+
+  database.engine = "Postgres 15"
+  status current, valid 2026-01-01 to open, recorded 2026-02-01T08:30:00Z
+
+  provenance: session 2026-02-01T08:00Z at 2026-02-01T08:30:00Z
+    "DB still on Postgres 15"
+  supporters: none
+  superseded by: f-db-16
+  supersedes: none
+  contradicts:
+    f-db-16: "Postgres 16"
