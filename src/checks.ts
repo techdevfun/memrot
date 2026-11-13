@@ -317,6 +317,19 @@ function checkNearDuplicates(conn: Connection, opts: AuditOptions): CheckResult 
   const findings: Finding[] = [];
   const seen = new Set<string>();
 
+  // A store whose facts carry no embeddings cannot be checked for
+  // near-duplicates at all: say so instead of reporting "none found".
+  const withEmbedding = rows(conn, `MATCH (f:Fact) WHERE f.embedding IS NOT NULL RETURN count(f) AS n`);
+  if (num(withEmbedding[0] ?? {}, "n") === 0) {
+    return {
+      id: "near-duplicate",
+      name: "Near-duplicate facts (lexical)",
+      severity: "warning",
+      findings: [],
+      skipped: "no embeddings on Fact nodes: near-duplicate check could not run (see memrot index, v1.1)",
+    };
+  }
+
   const push = (aId: string, bId: string, score: number, a: Row, b: Row) => {
     const key = [aId, bId].sort().join("|");
     if (seen.has(key)) return;

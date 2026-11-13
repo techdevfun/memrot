@@ -130,6 +130,29 @@ test("near-duplicate check falls back to a cosine scan when no vector index exis
   assert.deepEqual(pairIds(byId(results, "near-duplicate")), ["f-db-16+f-db-16b"]);
 });
 
+test("near-duplicate check is skipped (not silent) when no fact carries an embedding", (t) => {
+  // Same 2-fact shape as the council's probe: facts with no `embedding`
+  // property at all. The check must say it could not run, not report [].
+  const path = buildViaChild(
+    t,
+    `for (const [id, subject, predicate, object] of [
+       ["f-a", "database", "engine", "Postgres 16"],
+       ["f-b", "database", "db_engine", "PostgreSQL 16"],
+     ]) {
+       c.query("CREATE (:Fact {id: $id, subject: $s, predicate: $p, object: $o, status: 'current'})", {
+         id, s: subject, p: predicate, o: object,
+       });
+     }`,
+  );
+  const results = audit(path);
+  const nd = byId(results, "near-duplicate");
+  assert.deepEqual(nd.findings, []);
+  assert.equal(
+    nd.skipped,
+    "no embeddings on Fact nodes: near-duplicate check could not run (see memrot index, v1.1)",
+  );
+});
+
 test("clean store: all checks pass", (t) => {
   const path = buildViaChild(
     t,
